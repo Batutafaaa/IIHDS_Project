@@ -66,7 +66,7 @@ C) R Programming Skills
       }
     }
 
-Data Visualization
+D) Data Visualization
 
     ggplot2 for publication-quality graphs
 
