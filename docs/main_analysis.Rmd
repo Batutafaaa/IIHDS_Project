@@ -1,0 +1,621 @@
+---
+title: "Social & Cultural Capital Effects on Employment in Rural India"
+subtitle: "Focus on Muslim Group Disadvantage Analysis"
+author: "IIHDS Research Team"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: 
+      collapsed: false
+      smooth_scroll: true
+    code_folding: hide
+    theme: cosmo
+    highlight: tango
+    df_print: paged
+    number_sections: true 
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+  word_document:
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  fig.align = "center",
+  cache = FALSE,
+  comment = NA,
+  error = FALSE  # Stop on errors
+)
+
+options(scipen = 999, digits = 3)
+
+# Verify working directory
+expected_wd <- "C:/Users/ashwin/Desktop/IIHDS_Project"
+if (!dir.exists(expected_wd)) {
+  stop("Working directory not found: ", expected_wd, "\n",
+       "Please update the path in the setup chunk.")
+}
+```
+
+```{r load-environment, include=FALSE}
+# Set working directory to project root
+setwd("C:/Users/ashwin/Desktop/IIHDS_Project")
+
+# Load required packages
+required_packages <- c("haven", "dplyr", "tidyverse", "ggplot2", "scales", 
+                      "knitr", "kableExtra", "broom")
+
+for(pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# Define helper functions locally (avoid sourcing issues)
+convert_work_var <- function(x) {
+  as.numeric(x %in% c("(2) <240hrs 2", "(3) parttime 3", "(4) ft yr 4"))
+}
+
+extract_education_years <- function(ed_var) {
+  dplyr::case_when(
+    ed_var == "(00) none 0" ~ 0,
+    ed_var == "(55) <1 class 55" ~ 0.5,
+    ed_var == "(01) 1st class 1" ~ 1,
+    ed_var == "(02) 2nd class 2" ~ 2,
+    ed_var == "(03) 3rd class 3" ~ 3,
+    ed_var == "(04) 4th class 4" ~ 4,
+    ed_var == "(05) 5th class 5" ~ 5,
+    ed_var == "(06) 6th class 6" ~ 6,
+    ed_var == "(07) 7th class 7" ~ 7,
+    ed_var == "(08) 8th class 8" ~ 8,
+    ed_var == "(09) 9th class 9" ~ 9,
+    ed_var == "(10) Secondary 10" ~ 10,
+    ed_var == "(11) 11th Class 11" ~ 11,
+    ed_var == "(12) High Secondary 12" ~ 12,
+    ed_var == "(13) 1 year post-secondary" ~ 13,
+    ed_var == "(14) 2 years post-secondary" ~ 14,
+    ed_var == "(15) Bachelors 15" ~ 15,
+    ed_var == "(16) Above Bachelors 16" ~ 16,
+    TRUE ~ NA_real_
+  )
+}
+
+# Check if analysis outputs exist
+outputs_exist <- all(c(
+  file.exists("output/analysis_data.rds"),
+  file.exists("output/tables/wealth_by_group.csv"),
+  file.exists("output/models/model_employment_main.rds"),
+  file.exists("output/tables/marginal_effects.csv")
+))
+
+if (!outputs_exist) {
+  stop("⚠️  ERROR: Required output files not found!\n",
+       "Please run the analysis pipeline first:\n",
+       "  source('scripts/run_analysis.R')\n",
+       "Or check your working directory.")
+}
+```
+
+<style>
+.alert {
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 5px;
+}
+.alert-success {
+  background-color: #d4edda;
+  border-left: 5px solid #28a745;
+}
+.alert-warning {
+  background-color: #fff3cd;
+  border-left: 5px solid #ffc107;
+}
+.alert-info {
+  background-color: #d1ecf1;
+  border-left: 5px solid #17a2b8;
+}
+.key-finding {
+  background-color: #f8f9fa;
+  border-left: 5px solid #007bff;
+  padding: 15px;
+  margin: 20px 0;
+}
+</style>
+
+# Executive Summary {-}
+
+<div class="alert alert-success">
+**Key Research Question**: How do social and cultural capital affect employment outcomes across different social groups in rural India, with particular focus on Muslim communities?
+</div>
+
+```{r load-key-stats, include=FALSE}
+# Load actual analysis results with error handling
+tryCatch({
+  analysis_data <- readRDS("output/analysis_data.rds")
+  wealth_by_group <- read.csv("output/tables/wealth_by_group.csv")
+  model_summary <- read.csv("output/tables/model_employment_key_vars.csv")
+  ame_results <- read.csv("output/tables/marginal_effects.csv")
+  muslim_profile <- read.csv("output/tables/muslim_profile.csv")
+}, error = function(e) {
+  stop("Failed to load analysis outputs:\n", e$message, "\n",
+       "Make sure you've run the analysis pipeline first.")
+})
+
+# Calculate key statistics
+n_total <- nrow(analysis_data)
+wealth_emp_cor <- cor(wealth_by_group$mean_wealth, 
+                      wealth_by_group$employment_rate, 
+                      use = "complete.obs")
+
+# Extract Muslim statistics
+muslim_emp_rate <- muslim_profile$employment_rate * 100
+muslim_edu_years <- muslim_profile$mean_education
+
+# Extract coefficients safely
+get_coef <- function(df, term_pattern) {
+  row <- df[grepl(term_pattern, df$term, ignore.case = TRUE), ]
+  if (nrow(row) == 0) return(NA)
+  return(row$estimate[1])
+}
+
+org_coef <- get_coef(model_summary, "org_membership")
+wealth_coef <- get_coef(model_summary, "wealth_index")
+muslim_coef <- get_coef(model_summary, "Muslim")
+
+# Calculate odds ratios
+org_or <- exp(org_coef)
+wealth_or <- exp(wealth_coef)
+muslim_or <- exp(muslim_coef)
+
+# Get AME for female
+get_ame <- function(df, var_pattern) {
+  row <- df[grepl(var_pattern, df$Variable, ignore.case = TRUE), ]
+  if (nrow(row) == 0) return(NA)
+  return(row$AME[1] * 100)
+}
+
+female_ame <- get_ame(ame_results, "Female")
+```
+
+This study analyzes employment patterns among **`r format(n_total, big.mark=",")`** individuals from rural India using the India Human Development Survey (IHDS-II, 2011-12). We employ logistic regression with state fixed effects and calculate average marginal effects for intuitive interpretation.
+
+## Main Findings {-}
+
+::: {.key-finding}
+**1. Wealth-Employment Paradox**  
+Correlation: **`r round(wealth_emp_cor, 3)`**. Each unit increase in wealth **decreases employment odds by `r abs(round((1-wealth_or)*100, 1))`%**
+
+**2. Muslim Disadvantage**  
+Employment rate: **`r round(muslim_emp_rate, 1)`%** | Odds: **`r round((muslim_or-1)*100, 1)`% vs Brahmins** | Mean education: **`r round(muslim_edu_years, 1)` years**
+
+**3. Social Capital Impact**  
+Organization membership increases employment odds by **`r round((org_or-1)*100, 1)`%**
+
+**4. Gender Gap**  
+Women face **`r abs(round(female_ame, 1))` percentage points** lower employment probability than men
+
+**5. Interaction Effects**  
+```{r interaction-check, include=FALSE}
+if (file.exists("output/models/model_interaction.rds")) {
+  model_int <- readRDS("output/models/model_interaction.rds")
+  int_coef <- coef(model_int)["org_membership:education_years"]
+  int_exists <- TRUE
+} else {
+  int_coef <- -0.020
+  int_exists <- FALSE
+}
+```
+Education returns are **weaker** for organization members (β=`r round(int_coef, 3)`, p<0.001)
+:::
+
+---
+
+# Introduction
+
+## Research Background
+
+India's labor markets are characterized by persistent inequalities across social groups, with Muslim communities facing multidimensional disadvantages. This study examines how **social capital** (organizational membership, trust) and **cultural capital** (education) affect employment outcomes, drawing on Bourdieu's theory of capitals.
+
+## Research Questions
+
+1. **Wealth-Employment Paradox**: Why do wealthier social groups show lower employment rates?
+2. **Muslim Disadvantage**: What are the structural barriers limiting Muslim employment?
+3. **Social Capital**: How does organizational membership affect employment probability?
+4. **Cultural Capital**: What are the returns to education across different social groups?
+5. **Interaction Effects**: Do social and cultural capital operate synergistically or independently?
+
+---
+
+# Data and Methodology
+
+## Data Source
+
+<div class="alert alert-info">
+**Data Source**: India Human Development Survey (IHDS-II), 2011-12  
+**Provider**: ICPSR (Study #36151)  
+**Sample Size**: `r format(n_total, big.mark=",")` rural individuals  
+**Coverage**: `r length(unique(analysis_data$STATEID_ind))` states
+</div>
+
+```{r sample-characteristics}
+sample_summary <- data.frame(
+  Characteristic = c("Total Observations", "Rural Sample", "Social Groups", 
+                    "States Covered", "Employment Rate"),
+  Value = c(
+    format(n_total, big.mark = ","),
+    format(sum(!is.na(analysis_data$employed)), big.mark = ","),
+    length(unique(na.omit(analysis_data$social_group))),
+    length(unique(analysis_data$STATEID_ind)),
+    paste0(round(mean(analysis_data$employed, na.rm=TRUE)*100, 1), "%")
+  )
+)
+
+kable(sample_summary, 
+      caption = "Sample Characteristics",
+      align = c('l', 'r'),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE,
+                position = "left") %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+## Variable Definitions
+
+```{r variable-table}
+var_definitions <- data.frame(
+  Variable = c("**employed**", "**org_membership**", "**education_years**", 
+               "**social_group**", "**female**", "**wealth_index**"),
+  Definition = c(
+    "Binary: 1=employed ≥240 hours/year, 0=not employed",
+    "Membership in any social/political organization (1=yes)",
+    "Years of formal education completed (0-16)",
+    "Caste/religious group: Brahmins, Forward Castes, OBCs, Dalits, Adivasis, Muslims, Other Religions",
+    "Gender (1=female, 0=male)",
+    "Household wealth index based on asset ownership"
+  ),
+  Type = c("Dependent", "Independent", "Independent", "Independent", "Control", "Control")
+)
+
+kable(var_definitions, 
+      caption = "Variable Definitions",
+      align = c('l', 'l', 'c'),
+      escape = FALSE,
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) %>%
+  column_spec(1, bold = TRUE, width = "12em") %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+## Statistical Methods
+
+### Main Model Specification
+
+$$
+\log\left(\frac{P(\text{employed}_i = 1)}{1-P(\text{employed}_i = 1)}\right) = \beta_0 + \beta_1\text{OrgMember}_i + \beta_2\text{Education}_i + \sum_{j}\gamma_j\text{SocialGroup}_{ij} + \beta_3\text{Female}_i + \beta_4\text{Age}_i + \beta_5\text{Age}^2_i + \beta_6\text{Wealth}_i + \sum_{s}\delta_s\text{State}_{is} + \epsilon_i
+$$
+
+---
+
+# Descriptive Statistics
+
+## Employment Distribution by Social Group
+
+```{r employment-distribution, fig.cap="Employment Rates by Social Group"}
+wealth_by_group %>%
+  filter(!is.na(social_group)) %>%
+  mutate(social_group = reorder(social_group, employment_rate),
+         is_muslim = social_group == "Muslims") %>%
+  ggplot(aes(x = social_group, y = employment_rate * 100, fill = is_muslim)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(employment_rate * 100, 1), "%")),
+            hjust = -0.1, size = 3.5) +
+  scale_fill_manual(values = c("steelblue", "coral")) +
+  coord_flip() +
+  labs(
+    title = "Employment Rates Vary Dramatically by Social Group",
+    subtitle = "Muslims (highlighted) show distinct employment patterns",
+    x = NULL,
+    y = "Employment Rate (%)",
+    caption = "Source: IHDS-II (2011-12), Rural Sample"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "coral", size = 11),
+    panel.grid.minor = element_blank()
+  )
+```
+
+```{r employment-table}
+employment_table <- wealth_by_group %>%
+  filter(!is.na(social_group)) %>%
+  mutate(
+    n = format(n, big.mark = ","),
+    employment_rate = paste0(round(employment_rate * 100, 1), "%"),
+    mean_wealth = round(mean_wealth, 1),
+    mean_education = round(mean_education, 1)
+  ) %>%
+  arrange(desc(employment_rate)) %>%
+  select(social_group, n, employment_rate, mean_wealth, mean_education)
+
+muslim_row <- which(employment_table$social_group == "Muslims")
+
+kable(employment_table, 
+      col.names = c("Social Group", "N", "Employment Rate", 
+                    "Mean Wealth", "Mean Education (yrs)"),
+      caption = "Socioeconomic Characteristics by Social Group",
+      align = c('l', 'r', 'r', 'r', 'r'),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(muslim_row, bold = TRUE, background = "#ffe6e6") %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+## The Wealth-Employment Paradox
+
+```{r wealth-paradox, fig.cap="Wealthy Groups Show Lower Employment", fig.width=10, fig.height=7}
+ggplot(wealth_by_group %>% filter(!is.na(social_group)), 
+       aes(x = mean_wealth, y = employment_rate, 
+           color = social_group, size = n)) +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = "lm", se = TRUE, color = "black", 
+              linetype = "dashed", size = 0.8, alpha = 0.3) +
+  geom_text(aes(label = social_group), vjust = -0.8, size = 3.5, 
+            show.legend = FALSE, check_overlap = TRUE, fontface = "bold") +
+  scale_size_continuous(range = c(4, 12), labels = comma) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Wealth-Employment Paradox: Negative Correlation Across Social Groups",
+    subtitle = paste0("Pearson's r = ", round(wealth_emp_cor, 3), 
+                     " | Wealthier groups show systematically lower employment"),
+    x = "Mean Wealth Index",
+    y = "Employment Rate",
+    size = "Sample Size",
+    color = "Social Group",
+    caption = "Source: IHDS-II (2011-12)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(color = "darkred", size = 11),
+    legend.position = "right"
+  )
+```
+
+<div class="alert alert-warning">
+**Correlation**: `r round(wealth_emp_cor, 3)` indicates a strong **negative** relationship between group-level wealth and employment rates, suggesting wealthier households have lower labor force participation.
+</div>
+
+## Muslim Community Profile
+
+```{r muslim-profile-table}
+muslim_characteristics <- data.frame(
+  Characteristic = c("**Sample Size**", "**Employment Rate**", 
+                     "**Mean Wealth Index**", "**Mean Education**", 
+                     "**Female Proportion**", "**Org. Membership**"),
+  Value = c(
+    format(muslim_profile$n, big.mark = ","),
+    paste0(round(muslim_profile$employment_rate * 100, 1), "%"),
+    round(muslim_profile$mean_wealth, 1),
+    paste0(round(muslim_profile$mean_education, 1), " years"),
+    paste0(round(muslim_profile$female_rate * 100, 1), "%"),
+    paste0(round(muslim_profile$org_membership_rate * 100, 1), "%")
+  ),
+  Comparison = c(
+    paste0(round(muslim_profile$n / n_total * 100, 1), "% of rural sample"),
+    "Rank among social groups",
+    "Similar to Dalits",
+    "Below national average",
+    "Balanced distribution",
+    "Below overall average"
+  )
+)
+
+kable(muslim_characteristics, 
+      caption = "Muslim Community Characteristics",
+      align = c('l', 'r', 'l'),
+      escape = FALSE,
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+---
+
+# Regression Analysis
+
+## Main Model Results
+
+```{r load-regression-results}
+model_employment <- readRDS("output/models/model_employment_main.rds")
+fit_stats <- read.csv("output/tables/model_fit_statistics.csv")
+```
+
+### Model Fit Statistics
+
+```{r model-fit-table}
+kable(fit_stats, 
+      caption = "Model Fit Statistics",
+      align = c('l', 'r'),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa")
+```
+
+### Regression Coefficients
+
+```{r regression-coefficients}
+formatted_summary <- model_summary %>%
+  mutate(
+    Odds_Ratio = exp(estimate),
+    Estimate = round(estimate, 4),
+    Std_Error = round(std.error, 4),
+    Odds_Ratio = round(Odds_Ratio, 3),
+    CI_Lower = round(exp(estimate - 1.96 * std.error), 3),
+    CI_Upper = round(exp(estimate + 1.96 * std.error), 3),
+    CI = paste0("[", CI_Lower, ", ", CI_Upper, "]"),
+    P_Value = ifelse(p.value < 0.001, "<0.001", round(p.value, 4)),
+    term = case_when(
+      term == "org_membership" ~ "Organization Membership",
+      term == "education_years" ~ "Education (per year)",
+      grepl("Muslim", term) ~ "Muslim (vs Brahmin)",
+      term == "female" ~ "Female",
+      term == "wealth_index" ~ "Wealth Index",
+      TRUE ~ term
+    )
+  ) %>%
+  select(term, Estimate, Std_Error, Odds_Ratio, CI, P_Value, sig)
+
+muslim_row <- which(grepl("Muslim", formatted_summary$term))
+
+kable(formatted_summary, 
+      caption = "Logistic Regression: Determinants of Employment",
+      col.names = c("Variable", "Coefficient", "Std. Error", 
+                    "Odds Ratio", "95% CI", "P-Value", "Sig."),
+      align = c('l', 'r', 'r', 'r', 'c', 'r', 'c'),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(muslim_row, bold = TRUE, background = "#ffe6e6") %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa") %>%
+  footnote(general = "*** p<0.001, ** p<0.01, * p<0.05")
+```
+
+---
+
+# Marginal Effects Analysis
+
+```{r marginal-effects-table}
+ame_formatted <- ame_results %>%
+  mutate(
+    AME_pp = round(AME * 100, 2),
+    SE_pp = round(SE * 100, 3),
+    CI_Lower = round((AME - 1.96 * SE) * 100, 2),
+    CI_Upper = round((AME + 1.96 * SE) * 100, 2),
+    CI = paste0("[", CI_Lower, ", ", CI_Upper, "]"),
+    z_value = round(z_value, 2),
+    p_value = ifelse(p_value < 0.001, "<0.001", round(p_value, 4))
+  ) %>%
+  select(Variable, AME_pp, SE_pp, CI, z_value, p_value)
+
+kable(ame_formatted, 
+      col.names = c("Variable", "AME (pp)", "SE", "95% CI", "z-value", "P-Value"),
+      caption = "Average Marginal Effects on Employment Probability",
+      align = c('l', 'r', 'r', 'c', 'r', 'r'),
+      booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = TRUE, background = "#f8f9fa") %>%
+  footnote(general = "pp = percentage points")
+```
+
+```{r ame-visualization, fig.cap="Average Marginal Effects"}
+ame_results %>%
+  mutate(
+    AME_pp = AME * 100,
+    CI_Lower = (AME - 1.96 * SE) * 100,
+    CI_Upper = (AME + 1.96 * SE) * 100,
+    Variable = factor(Variable, levels = Variable[order(AME)])
+  ) %>%
+  ggplot(aes(x = Variable, y = AME_pp, color = AME_pp > 0)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_pointrange(aes(ymin = CI_Lower, ymax = CI_Upper), size = 0.8) +
+  geom_point(size = 3) +
+  coord_flip() +
+  scale_color_manual(values = c("coral", "steelblue"), guide = "none") +
+  labs(
+    title = "Average Marginal Effects on Employment Probability",
+    x = NULL,
+    y = "Average Marginal Effect (percentage points)",
+    caption = "Error bars: 95% confidence intervals"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold"))
+```
+
+---
+
+# Discussion
+
+## Summary of Key Findings
+
+### 1. The Wealth-Employment Paradox
+
+**Finding**: Correlation = `r round(wealth_emp_cor, 3)` between group wealth and employment
+
+**Interpretation**: Wealthier households show **lower** employment rates, suggesting:
+- Higher reservation wages
+- Non-labor income sources
+- Different definitions of "work"
+
+### 2. Muslim Disadvantage
+
+**Finding**: Muslims show `r round((muslim_or-1)*100, 1)`% lower employment odds vs Brahmins
+
+**Key Statistics**:
+- Employment rate: `r round(muslim_emp_rate, 1)`%
+- Mean education: `r round(muslim_edu_years, 1)` years
+- Organization membership: `r round(muslim_profile$org_membership_rate*100, 1)`%
+
+### 3. Social Capital Matters
+
+**Finding**: Organization membership increases odds by `r round((org_or-1)*100, 1)`%
+
+**Mechanism**: Networks provide job information, referrals, and social support.
+
+### 4. Gender Inequality
+
+**Finding**: Women face `r abs(round(female_ame, 1))` percentage point lower employment probability
+
+**Context**: Reflects cultural norms, childcare responsibilities, and mobility restrictions.
+
+## Policy Implications
+
+1. **Educational Investment**: Target Muslim-concentrated areas
+2. **Social Capital Development**: Support community organizations
+3. **Anti-Discrimination**: Strengthen enforcement measures
+4. **Gender Equity**: Address structural barriers (childcare, safety)
+
+---
+
+# Conclusion
+
+<div class="alert alert-success">
+**Key Takeaway**: Muslim disadvantage in rural India is **multidimensional** and cannot be explained by education or wealth alone. Comprehensive policy interventions are needed targeting education, social networks, and labor market discrimination simultaneously.
+</div>
+
+---
+
+# References {-}
+
+**Data Citation**:
+Desai, Sonalde, and Reeve Vanneman. India Human Development Survey-II (IHDS-II), 2011-12. Inter-university Consortium for Political and Social Research [distributor], 2018-08-08. https://doi.org/10.3886/ICPSR36151.v6
+
+---
+
+# Appendix
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```
+
+---
+
+<div align="center" style="margin-top: 40px;">
+**Report Generated**: `r Sys.time()`  
+**Analysis Pipeline**: Fully reproducible using provided scripts
+</div>

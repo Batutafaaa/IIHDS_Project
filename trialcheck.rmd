@@ -1,0 +1,168 @@
+# ==============================================================================
+# REPORT DIAGNOSTICS: Check if RMarkdown report can run
+# ==============================================================================
+# Run this BEFORE knitting the RMarkdown report to check for issues
+
+cat("\n=== IHDS REPORT DIAGNOSTICS ===\n\n")
+
+# 1. Check Working Directory
+cat("1. Checking working directory...\n")
+expected_wd <- "C:/Users/ashwin/Desktop/IIHDS_Project"
+current_wd <- getwd()
+
+if (current_wd == expected_wd) {
+  cat("   ✓ Working directory correct:", current_wd, "\n")
+} else {
+  cat("   ✗ Working directory mismatch!\n")
+  cat("     Current:", current_wd, "\n")
+  cat("     Expected:", expected_wd, "\n")
+  cat("   → Fix: Run setwd('", expected_wd, "')\n", sep = "")
+}
+
+# 2. Check Required Packages
+cat("\n2. Checking required packages...\n")
+required_packages <- c("haven", "dplyr", "tidyverse", "ggplot2", "scales", 
+                      "knitr", "kableExtra", "broom", "rmarkdown")
+
+missing_packages <- c()
+for (pkg in required_packages) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat("   ✗", pkg, "NOT installed\n")
+    missing_packages <- c(missing_packages, pkg)
+  } else {
+    cat("   ✓", pkg, "\n")
+  }
+}
+
+if (length(missing_packages) > 0) {
+  cat("\n   → Installing missing packages...\n")
+  install.packages(missing_packages, dependencies = TRUE)
+}
+
+# 3. Check Required Output Files
+cat("\n3. Checking required output files...\n")
+required_files <- c(
+  "output/analysis_data.rds",
+  "output/tables/wealth_by_group.csv",
+  "output/tables/model_employment_key_vars.csv",
+  "output/tables/marginal_effects.csv",
+  "output/tables/muslim_profile.csv",
+  "output/models/model_employment_main.rds",
+  "output/tables/model_fit_statistics.csv"
+)
+
+missing_files <- c()
+for (file in required_files) {
+  if (file.exists(file)) {
+    cat("   ✓", file, "\n")
+  } else {
+    cat("   ✗", file, "NOT FOUND\n")
+    missing_files <- c(missing_files, file)
+  }
+}
+
+if (length(missing_files) > 0) {
+  cat("\n   → Run analysis pipeline first:\n")
+  cat("     source('scripts/run_analysis.R')\n")
+}
+
+# 4. Check RMarkdown File
+cat("\n4. Checking RMarkdown file...\n")
+rmd_files <- c("docs/analysis_report.Rmd", "main_analysis.Rmd")
+rmd_found <- FALSE
+
+for (rmd in rmd_files) {
+  if (file.exists(rmd)) {
+    cat("   ✓ Found:", rmd, "\n")
+    rmd_found <- TRUE
+  }
+}
+
+if (!rmd_found) {
+  cat("   ✗ RMarkdown file not found\n")
+  cat("   → Expected location: docs/analysis_report.Rmd\n")
+}
+
+# 5. Test Data Loading
+cat("\n5. Testing data loading...\n")
+if (all(file.exists(required_files[1:5]))) {
+  tryCatch({
+    test_data <- readRDS("output/analysis_data.rds")
+    cat("   ✓ analysis_data.rds loaded:", nrow(test_data), "rows\n")
+    
+    test_wealth <- read.csv("output/tables/wealth_by_group.csv")
+    cat("   ✓ wealth_by_group.csv loaded:", nrow(test_wealth), "rows\n")
+    
+    test_model <- read.csv("output/tables/model_employment_key_vars.csv")
+    cat("   ✓ model_employment_key_vars.csv loaded:", nrow(test_model), "rows\n")
+    
+    test_ame <- read.csv("output/tables/marginal_effects.csv")
+    cat("   ✓ marginal_effects.csv loaded:", nrow(test_ame), "rows\n")
+    
+    test_muslim <- read.csv("output/tables/muslim_profile.csv")
+    cat("   ✓ muslim_profile.csv loaded:", nrow(test_muslim), "row(s)\n")
+    
+  }, error = function(e) {
+    cat("   ✗ Error loading data:", e$message, "\n")
+  })
+} else {
+  cat("   ⊘ Skipped (missing files)\n")
+}
+
+# 6. Summary
+cat("\n=== DIAGNOSTIC SUMMARY ===\n")
+all_good <- (
+  current_wd == expected_wd &&
+  length(missing_packages) == 0 &&
+  length(missing_files) == 0 &&
+  rmd_found
+)
+
+if (all_good) {
+  cat("✓ ALL CHECKS PASSED - Ready to knit report!\n\n")
+  cat("To generate report, run:\n")
+  cat("  rmarkdown::render('docs/analysis_report.Rmd')\n\n")
+} else {
+  cat("✗ ISSUES FOUND - Fix the problems above before knitting\n\n")
+  
+  if (current_wd != expected_wd) {
+    cat("→ Fix working directory first\n")
+  }
+  if (length(missing_packages) > 0) {
+    cat("→ Install missing packages\n")
+  }
+  if (length(missing_files) > 0) {
+    cat("→ Run analysis pipeline: source('scripts/run_analysis.R')\n")
+  }
+  if (!rmd_found) {
+    cat("→ Create RMarkdown file at: docs/analysis_report.Rmd\n")
+  }
+}
+
+# 7. Quick Test Knit (optional)
+cat("\n=== OPTIONAL: TEST KNIT ===\n")
+cat("Want to test-knit the report now? (y/n): ")
+
+# For non-interactive environments, skip this
+if (interactive()) {
+  response <- readline()
+  if (tolower(response) == "y" && all_good) {
+    cat("\nAttempting to knit report...\n")
+    tryCatch({
+      rmarkdown::render(
+        "docs/analysis_report.Rmd",
+        output_file = "analysis_report.html",
+        output_dir = "docs/",
+        quiet = FALSE
+      )
+      cat("\n✓ SUCCESS! Report generated at: docs/analysis_report.html\n")
+    }, error = function(e) {
+      cat("\n✗ Knitting failed:\n")
+      cat(e$message, "\n")
+    })
+  }
+} else {
+  cat("(Skipped - non-interactive session)\n")
+}
+
+cat("\n=== DIAGNOSTICS COMPLETE ===\n")
