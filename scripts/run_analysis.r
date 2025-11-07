@@ -19,10 +19,10 @@ scripts_to_run <- c(
   "02_data_preparation.R", # Uses functions from utils_functions
   "03_descriptive_stats.R",
   "04_regression_models.R",
-  "05_marginal_effects.R",
-  "06_results_interpretation.R", 
-  "07_visualizations.R",
-  "08_final_report.R"
+  "05_Interactions_ Subgroups.R",
+  "06_Marginal_Effects.R",
+  "07_final_report.R",
+  "08_visualizations.R"
 )
 
 for (script in scripts_to_run) {
