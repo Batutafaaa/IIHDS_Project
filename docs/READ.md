@@ -30,53 +30,62 @@ This project examines how **social capital** (organizational membership, trust) 
 
 ### Research Questions
 
-1. **Wealth-Employment Paradox**: Why do wealthier social groups show lower employment rates?
-2. **Muslim Disadvantage**: What structural barriers limit Muslim employment?
-3. **Social Capital**: How does organizational membership affect employment probability?
-4. **Cultural Capital**: What are the returns to education across social groups?
-5. **Interaction Effects**: How do social and cultural capital interact?
+1. **Wealth-Employment Paradox**: Why do wealthier social groups show systematically lower employment rates?
+2. **Muslim Disadvantage**: What structural barriers limit Muslim employment beyond education and wealth differences?
+3. **Social Capital**: How does organizational membership affect employment probability across different groups?
+4. **Cultural Capital**: What are the returns to education across social groups in rural labor markets?
+5. **Intersectional Effects**: How do gender, caste, and religion interact to shape employment outcomes?
 
 ### Key Features
 
-- ✅ Comprehensive logistic regression with state fixed effects (N=203,924)
-- ✅ Average Marginal Effects (AME) for intuitive interpretation
-- ✅ Interaction effects analysis (social capital × education)
-- ✅ Gender-stratified subgroup models
-- ✅ Muslim-specific analysis
-- ✅ Automated report generation with visualizations
+- ✅ **Large-scale analysis**: 204,568 individuals across rural India
+- ✅ **Advanced econometrics**: Logistic regression with state fixed effects
+- ✅ **Intuitive interpretation**: Average Marginal Effects (AME) in percentage points
+- ✅ **Interaction effects**: Social capital × education analysis
+- ✅ **Subgroup analysis**: Gender-stratified and Muslim-specific models
+- ✅ **Comprehensive reporting**: Automated tables, visualizations, and policy recommendations
 
 ---
 
-## 🔍 Key Findings
+## Key Findings
 
-### 1. Wealth-Employment Paradox
-- **Correlation: -0.671** between group wealth and employment
-- Each unit increase in wealth **decreases employment odds by 9.9%**
-- Wealthier groups (Other_Religions, Brahmins) show lower labor force participation
+### Wealth-Employment Paradox
+- **Strong negative correlation**: -0.671 between group wealth and employment rates
+- **Marginal effect**: Each unit increase in wealth decreases employment probability by **1.37 percentage points**
+- **Theoretical challenge**: Contradicts standard human capital predictions
 
-### 2. Muslim Disadvantage (Multidimensional)
-| Metric | Value | Comparison |
-|--------|-------|------------|
-| Employment Rate | **35.5%** | 2nd lowest among all groups |
-| Employment Odds vs Brahmins | **-7.7%** | Statistically significant (p<0.05) |
-| Salaried Employment | **1.9%** | Lowest of all groups |
-| Education Gap | **3.4 years** | Behind Brahmins |
-| Higher Education Rate | **9.7%** | vs Brahmins: 30.5% |
+### Muslim Disadvantage (Multidimensional Exclusion)
 
-### 3. Social Capital Effects
+| Dimension | Muslim Performance | Rank (vs 7 groups) | Gap vs Brahmins |
+|-----------|-------------------|-------------------|-----------------|
+| Employment Rate | **35.5%** | 6th/7 | -4.3 percentage points |
+| Wealth Index | 15.3 | 6th/7 | -4.3 points |
+| Education | 4.3 years | 7th/7 | -3.4 years |
+| Organization Membership | 5.5% | Lowest | -50% lower rate |
+
+**Net disadvantage**: Muslims have **7.7% lower employment odds** than Brahmins after controlling for education, wealth, age, gender, and state
+
+### Social Capital Effects
 - Organization membership increases employment probability by **1.05 percentage points**
-- Only **8.9%** of rural sample are organization members
-- **Stronger effect for women** (OR=1.149) than men (OR=1.026)
+- Only **8.9%** of rural population are organization members
+- **Untapped potential**: Massive scope for social capital interventions
 
-### 4. Gender Inequality
-- Women face **26.6 percentage points** lower employment probability
-- Muslim disadvantage is **severe for women** (OR=0.661) but positive for men (OR=1.173)
+### Education Returns
+- Each additional year of education increases employment probability by **0.14 percentage points**
+- **Linear relationship**: No threshold effects in rural labor markets
+- **Muslim education crisis**: 3.4-year gap vs Brahmins drives employment disadvantage
 
-### 5. Interaction Effects
+### Gender Inequality
+- Women face **26.44 percentage points** lower employment probability
+- **Massive gap**: One of the largest gender employment disparities documented
+- **Intersectional disadvantage**: Muslim women face compounded barriers
+
+### Interaction Effects
 - **Negative interaction** between education and organization membership (β=-0.020, p<0.001)
 - Education returns are **weaker** for organization members
-- Suggests social and cultural capital operate as **substitutes**, not complements
+- Suggests social and cultural capital operate as **substitutes** in rural labor markets
 
+---
 ---
 
 ## 📁 Project Structure
@@ -88,19 +97,19 @@ IIHDS_Project/
 ├── LICENSE                            # MIT License
 │
 ├── scripts/                           # Modular R scripts
-│   ├── run_analysis.R                 # Master runner script
-│   ├── 00_setup.R                     # Setup & configuration
-│   ├── utils_functions.R              # Helper functions
+│   ├── run_analysis.R                 # Master runner script (executes all below)
+│   ├── 00_setup.R                     # Setup, packages, configuration
+│   ├── utils_functions.R              # Helper functions & utilities
 │   ├── 01_data_loading.R              # Data loading & merging
-│   ├── 02_data_preparation.R          # Variable construction
-│   ├── 03_descriptive_stats.R         # Descriptive analysis
+│   ├── 02_data_preparation.R          # Variable construction & cleaning
+│   ├── 03_descriptive_stats.R         # Exploratory analysis & descriptives
 │   ├── 04_regression_models.R         # Main regression models
-│   ├── 05_advanced_analysis.R         # Interactions & subgroups
-│   ├── 06_marginal_effects.R          # AME calculations
-│   ├── 07_visualizations.R            # Plot generation
-│   └── 08_final_report.R              # Summary report
+│   ├── 05_Interactions_ Subgroups.R   # Interaction effects & subgroup analysis
+│   ├── 06_Marginal_Effects.R          # AME calculations & interpretation
+│   ├── 07_final_report.R              # Comprehensive findings summary
+│   └── 08_visualizations.R            # Plot generation
 │
-├── data/                              # Raw data files (not tracked)
+├── data/                              # Raw data files (not tracked in git)
 │   ├── 36151-0001-Data.rda           # IIHDS Individual data
 │   └── 36151-0002-Data.rda           # IIHDS Household data
 │
@@ -111,7 +120,9 @@ IIHDS_Project/
 │   │   ├── model_employment_key_vars.csv
 │   │   ├── marginal_effects.csv
 │   │   ├── muslim_profile.csv
-│   │   └── wealth_by_group.csv
+│   │   ├── wealth_by_group.csv
+│   │   ├── group_comparison_detailed.csv
+│   │   └── missing_data_summary.csv
 │   ├── models/                        # Saved model objects
 │   │   ├── model_employment_main.rds
 │   │   ├── model_interaction.rds
@@ -119,11 +130,8 @@ IIHDS_Project/
 │   │   ├── model_female.rds
 │   │   └── model_muslim.rds
 │   ├── analysis_data.rds              # Prepared analysis dataset
-│   └── merged_data.rds                # Merged raw data
-│
-├── docs/                              # Documentation
-│   ├── analysis_report.Rmd            # RMarkdown report
-│   └── analysis_report.html           # Rendered HTML report
+│   ├── merged_data.rds                # Merged raw data
+│   └── final_comprehensive_summary.rds # Complete results summary
 │
 └── .gitignore                         # Git ignore rules
 ```
@@ -150,9 +158,7 @@ install.packages(c(
   "ggplot2",    # Visualization
   "scales",     # Axis formatting
   "broom",      # Model tidying
-  "margins",    # Marginal effects
-  "knitr",      # Report generation (optional)
-  "kableExtra"  # Table formatting (optional)
+  "margins"     # Marginal effects
 ))
 ```
 
@@ -182,23 +188,25 @@ source("scripts/run_analysis.R")
 ### Step-by-Step Execution
 
 ```r
-# 1. Setup environment
+# 1. Setup and configuration
 source("scripts/00_setup.R")
+
+# 2. Load helper functions
 source("scripts/utils_functions.R")
 
-# 2. Load and prepare data
+# 3. Data processing
 source("scripts/01_data_loading.R")
 source("scripts/02_data_preparation.R")
 
-# 3. Run analysis
-source("scripts/03_descriptive_stats.R")
-source("scripts/04_regression_models.R")
-source("scripts/05_advanced_analysis.R")
-source("scripts/06_marginal_effects.R")
+# 4. Analysis
+source("scripts/03_descriptive_stats.R")  # Wealth-paradox discovery
+source("scripts/04_regression_models.R")  # Main regression models
+source("scripts/05_Interactions_ Subgroups.R")  # Interactions & subgroups
+source("scripts/06_Marginal_Effects.R")   # AME calculations
 
-# 4. Generate outputs
-source("scripts/07_visualizations.R")
-source("scripts/08_final_report.R")
+# 5. Output generation
+source("scripts/07_final_report.R")       # Comprehensive summary
+source("scripts/08_visualizations.R")     # Plot generation
 ```
 
 ### Generate HTML Report
@@ -276,9 +284,9 @@ data/
    - McFadden R² = 0.403 (excellent fit)
 
 2. **Average Marginal Effects (AME)**
-   - More intuitive than odds ratios
-   - Shows change in probability (percentage points)
-   - Calculated using finite differences method
+   - `Method`: Finite differences for binary variables, analytical for continuous
+   - `Advantage`: More interpretable than odds ratios
+   - `Output`: Percentage point changes in employment probability
 
 3. **Interaction Models**
    ```
@@ -289,7 +297,7 @@ data/
 4. **Subgroup Analysis**
    - Gender-stratified models (male/female)
    - Muslim-specific model
-   - Tests heterogeneity in effects
+   - Tests heterogeneity in effects across groups
 
 ### Key Functions
 
@@ -320,14 +328,26 @@ Calculates Average Marginal Effects using finite differences
 
 ### Marginal Effects
 
-| Variable | AME (pp) | Interpretation |
-|----------|----------|----------------|
-| Organization Membership | +1.05 | 1.05 pp increase in employment probability |
-| Education (per year) | +0.14 | 0.14 pp increase per additional year |
-| Female | -26.58 | 26.58 pp decrease for women |
-| Wealth Index | -1.38 | 1.38 pp decrease per unit increase |
-
+| Variable | AME (pp) | 95% CI| Interpretation |
+|----------|----------|-------|----------------|
+| Organization Membership | +1.05 | [1.03, 1.06] | 1.05 pp increase in employment probability |
+| Education (per year) | +0.14 | [0.10, 0.18] | 0.14 pp increase per additional year |
+| Female | -26.44 | [-26.86, -26.03] |26.44 pp decrease for women |
+| Wealth Index | -1.37 | [-1.41, -1.34] | 1.38 pp decrease per unit increase |
+| Muslim (vs Brahmin)| -2.10* | [-3.82, -0.38] | 2.10 pp net disadvantage |
 **pp** = percentage points
+*Calculated separately using counterfactual prediction method
+
+### Model Performance 
+
+|Metric | Value|
+|-------|------|
+|Observations| 203,924|
+| AIC       | 167,239|
+| McFadden R²| 0.403 |
+| Null Deviance| 280,088| 
+| Residual Deviance| 167,149| 
+
 
 ### Output Files
 
@@ -384,7 +404,7 @@ If you use this code or analysis in your research, please cite:
 
 ### APA Format
 ```
-Sreekumar. (2024). Social & Cultural Capital Effects on Employment in Rural India: 
+Sreekumar. (2025). Social & Cultural Capital Effects on Employment in Rural India: 
 Muslim Group Disadvantage Analysis. GitHub repository. 
 https://github.com/Batutafaaa/IIHDS_Project
 ```
@@ -407,65 +427,6 @@ Desai, Sonalde, and Reeve Vanneman. India Human Development Survey-II (IHDS-II),
 2018-08-08. https://doi.org/10.3886/ICPSR36151.v6
 ```
 
----
 
-## 🎓 Academic Context
-
-### Theoretical Framework
-
-This analysis draws on:
-
-- **Bourdieu's Capital Theory**: Social, cultural, and economic capital as distinct forms
-- **Human Capital Theory**: Education as investment in productivity
-- **Social Network Theory**: Organizational membership as bridging/bonding capital
-- **Intersectionality**: Multiple axes of disadvantage (caste, religion, gender)
-
-### Related Literature
-
-- **Muslim Employment in India**: Sachar Committee Report (2006), Kundu & Sarangi (2007)
-- **Social Capital & Employment**: Granovetter (1973), Lin (2001), Fernández & Fernández-Mateo (2006)
-- **Rural Labor Markets**: Deshpande & Sharma (2016), Thorat & Attewell (2007)
-
-
----
-
-## 🙏 Acknowledgments
-
-- **ICPSR** for providing access to IHDS data
-- **Desai & Vanneman** for conducting the IHDS survey
-- **R Core Team** and package developers
-- **Open source community** for statistical computing tools
-
-
-
----
-
-## 🔮 Future Work
-
-1. **Temporal Analysis**: Compare IHDS-I (2004-05) vs IHDS-II (2011-12)
-2. **Causal Inference**: Propensity score matching for organizational membership
-3. **Spatial Analysis**: Geographic clustering of Muslim disadvantage
-4. **Qualitative Interviews**: Understand mechanisms behind quantitative findings
-5. **Policy Simulation**: Estimate impact of interventions (education, anti-discrimination)
-
----
-
-## ⚙️ Technical Notes
-
-### Performance Optimization
-
-- **Avoid `broom::tidy()` with large models**: Use direct `summary()$coefficients` extraction (10-100x faster)
-- **State fixed effects**: 34 states → use factor encoding, not dummy variables
-- **Large sample size**: 200K+ observations → use vectorized operations, avoid loops
-
-### Common Issues
-
-**Issue**: `broom::tidy()` hangs with `conf.int=TRUE`  
-**Solution**: Calculate Wald CIs manually: `estimate ± 1.96 * std.error`
-
-**Issue**: Models won't converge  
-**Solution**: Check for perfect separation in categorical variables
-
-**Issue**: Out of memory errors  
-**Solution**: Use data.table instead of dplyr for large datasets
+--
 
