@@ -9,13 +9,11 @@ Analysis of how social and cultural capital affect employment outcomes across so
 
 ## 📚 Documentation
 - [Detailed Project Documentation](docs/READ.md)
-- [Full Analysis Report](docs/main_analysis.Rmd)
-- [HTML Report](main_analysis.html)
+
 
 ## 🚀 Quick Start
 ```r
 # Run complete analysis
 source("scripts/run_analysis.R")
 
-# Generate report
-rmarkdown::render("docs/main_analysis.Rmd")
+
