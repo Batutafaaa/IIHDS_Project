@@ -22,7 +22,12 @@ scripts_to_run <- c(
   "05_Interactions_ Subgroups.R",
   "06_Marginal_Effects.R",
   "07_final_report.R",
-  "08_visualizations.R"
+  "08_visualizations.R",
+  "09_robustness_checks.R",
+  "10_geographic_analysis.R",
+  "11_sc_st_geographic_analysis.R",
+  "12_employment_quality.R"
+
 )
 
 for (script in scripts_to_run) {
