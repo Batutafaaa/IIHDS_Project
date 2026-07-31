@@ -16,18 +16,22 @@ The analysis is organized into a sequential pipeline of R scripts located in the
 
 | Step | Script | Description |
 |:---|:---|:---|
-| 00 | `00_setup.r` | Dependency management and environment setup. |
-| 01 | `01_data_loading.r` | Raw data ingestion (IHDS-II rda files). |
-| 02 | `02_data_preparation.r` | Variable cleaning, recoding, and subsetting. |
-| 03 | `03_descriptive_stats.r` | Initial group-level summary and wealth-work paradox analysis. |
-| 04 | `04_regression_models.r` | Core logistic and OLS models for employment and earnings. |
-| 05 | `05_Interactions_Subgroups.r` | Complex interaction effects and heterogeneity checks. |
-|  07 | `07_final_report.r` | Generation of tabular results and regression summaries. |
-| 08 | `08_visualizations.r` | Code for generating the core diagnostic plots. |
-| 09 | `09_robustness_checks.r` | Validation of results across different model specifications. |
-| 10 | `10_geographic_analysis.r` | District-level correlation and Muslim geographic trap analysis. |
-| 11 | `11_sc_st_geographic_analysis.r` | Comparative geographic analysis for SC and ST groups. |
-| 12 | `12_employment_quality.r` | Analysis of contract types, informality, and formal benefits. |
+| 00 | `00_setup.r` | Dependency management, folder structure creation, and package setup. |
+| Helper | `utils_functions.r` | Helper functions for modeling summaries and data formatting. |
+| 01 | `01_data_loading.r` | Raw data ingestion and merging of IHDS-II individual and household RDA files. |
+| 02 | `02_data_preparation.r` | Variable cleaning, recoding (education, groups, employment), and analytical subsetting. |
+| 03 | `03_descriptive_stats.r` | Group-level descriptive statistics, wealth-work paradox, and urban/rural profiles. |
+| 04 | `04_regression_models.r` | Core survey-weighted logistic regressions for employment. |
+| 05 | `05_Interactions_ Subgroups.r` | Social capital interaction models (social group × organization membership). |
+| 06 | `06_Marginal_Effects.r` | Computes Average Marginal Effects (AMEs) for the full sample. |
+| 08 | `08_visualizations.r` | Renders diagnostic plots (wealth-work paradox, spatial correlations, heatmaps). |
+| 09 | `09_robustness_checks.r` | Sensitivity checks (District FE LPM, exogenous controls, and survey-weighted District FE). |
+| 10 | `10_geographic_analysis.r` | Spatial correlation and Muslim geographic trap analysis. |
+| 11 | `11_sc_st_geographic_analysis.r` | Comparative geographic concentration and gap analyses for SC and ST groups. |
+| 12 | `12_employment_quality.r` | Heckman selection-corrected wage regressions, contract types, and NREGA rates. |
+| 13 | `13_urban_rural_dynamics.r` | Within-state urban-rural interaction regressions for employment and wages. |
+| 07 | `07_final_report.r` | Consolidates results and outputs final report summaries. |
+
 
 ## 🛠️ Key Methodology
 

@@ -1,7 +1,5 @@
 "Metric","Value"
-"N",203924
-"AIC",167239
-"Null Deviance",280088.2
-"Residual Deviance",167149
-"McFadden R²",0.403
-"Log-Likelihood",-83574.5
+"N (model sample)",203924
+"Null Deviance",279872
+"Residual Deviance",166833.3
+"McFadden R²",0.4039

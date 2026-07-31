@@ -1,405 +1,189 @@
 # ==============================================================================
-# MARGINAL EFFECTS ANALYSIS 
+# 06_MARGINAL EFFECTS ANALYSIS
+# ==============================================================================
+# Computes Average Marginal Effects (AMEs) for all key variables using the
+# counterfactual method (predict-the-difference-at-every-observation).
+#
+# Key improvements over previous version:
+#   1. No subsampling — AMEs computed on FULL model dataset (~200k obs)
+#   2. AMEs for both social capital dimensions (org_membership )
+#   3. AME for urban_resident (new variable in model)
+#   4. Group-differentiated social capital AMEs (from interaction model):
+#      org_membership effect computed separately per social group
+#   5. All group AMEs (every social group vs Brahmins)
 # ==============================================================================
 
-print_section("MARGINAL EFFECTS ANALYSIS - OPTIMIZED")
+print_section("MARGINAL EFFECTS ANALYSIS")
 
-# Load model and data
-model_employment <- readRDS("output/models/model_employment_main.rds")
-analysis_data <- readRDS("output/analysis_data.rds")
-
-cat("Starting marginal effects calculation...\n")
-
-# ==============================================================================
-# PREPARE DATA - Recreate the exact model dataset
-# ==============================================================================
-
-cat("Preparing analysis data...\n")
-
-# Get complete cases for all model variables
-model_vars <- c("employed", "org_membership", "education_years", "social_group", 
-                "female", "age", "age_sq", "wealth_index", "STATEID_ind")
-
-# Filter to complete cases (same as what was used in model fitting)
-analysis_sample_full <- analysis_data %>%
-  filter(complete.cases(pick(all_of(model_vars))))
-
-cat("Complete cases available:", nrow(analysis_sample_full), "\n")
-
-# Take a sample for computational speed
-set.seed(123)
-sample_size <- min(5000, nrow(analysis_sample_full))
-
-if (nrow(analysis_sample_full) > 0) {
-  sample_indices <- sample(1:nrow(analysis_sample_full), sample_size)
-  analysis_sample <- analysis_sample_full[sample_indices, ]
-  cat("Using sample of", sample_size, "observations\n")
-} else {
-  stop("ERROR: No complete cases found in analysis data!")
-}
-
-# ==============================================================================
-# MARGINAL EFFECTS CALCULATION WITH ERROR HANDLING
-# ==============================================================================
-
-calculate_robust_ame <- function(model, data) {
-  cat("\nCalculating Average Marginal Effects...\n")
-  
-  results <- list()
-  
-  # Test prediction first to ensure data compatibility
-  cat("Testing data compatibility... ")
-  test_pred <- tryCatch({
-    predict(model, newdata = data[1:min(10, nrow(data)), ], type = "response")
-  }, error = function(e) {
-    cat("\nERROR:", e$message, "\n")
-    return(NULL)
-  })
-  
-  if (is.null(test_pred)) {
-    stop("Data is not compatible with the model. Check factor levels.")
+readRDS_safe <- function(file_path, retries = 3) {
+  for (i in 1:retries) {
+    res <- tryCatch(readRDS(file_path), error = function(e) e)
+    if (!inherits(res, "error")) return(res)
+    Sys.sleep(1)
   }
-  cat("✓\n")
-  
-  # 1. ORGANIZATION MEMBERSHIP (Binary)
-  cat("  • Organization membership... ")
-  
-  # Create counterfactual datasets
-  data_org0 <- data
-  data_org1 <- data
-  data_org0$org_membership <- 0
-  data_org1$org_membership <- 1
-  
-  # Predict probabilities
-  pred_org0 <- predict(model, newdata = data_org0, type = "response")
-  pred_org1 <- predict(model, newdata = data_org1, type = "response")
-  
-  # Calculate marginal effect
-  marginal_effects_org <- pred_org1 - pred_org0
-  ame_org <- mean(marginal_effects_org, na.rm = TRUE)
-  se_org <- sd(marginal_effects_org, na.rm = TRUE) / sqrt(length(marginal_effects_org))
-  z_org <- ame_org / se_org
-  p_org <- 2 * pnorm(-abs(z_org))
-  
-  results$org_membership <- list(AME = ame_org, SE = se_org, z = z_org, p = p_org)
-  cat("✓\n")
-  
-  # 2. EDUCATION (Continuous)
-  cat("  • Education years... ")
-  
-  # Get coefficient and predicted probabilities
-  coef_edu <- coef(model)["education_years"]
-  pred_prob <- predict(model, newdata = data, type = "response")
-  
-  # AME for continuous variable in logit
-  ame_edu <- coef_edu * mean(pred_prob * (1 - pred_prob), na.rm = TRUE)
-  
-  # Standard error (delta method approximation)
-  se_edu <- summary(model)$coefficients["education_years", "Std. Error"] * 
-            mean(pred_prob * (1 - pred_prob), na.rm = TRUE)
-  z_edu <- ame_edu / se_edu
-  p_edu <- 2 * pnorm(-abs(z_edu))
-  
-  results$education_years <- list(AME = ame_edu, SE = se_edu, z = z_edu, p = p_edu)
-  cat("✓\n")
-  
-  # 3. FEMALE (Binary)
-  cat("  • Gender (female)... ")
-  
-  data_male <- data
-  data_female <- data
-  data_male$female <- 0
-  data_female$female <- 1
-  
-  pred_male <- predict(model, newdata = data_male, type = "response")
-  pred_female <- predict(model, newdata = data_female, type = "response")
-  
-  marginal_effects_female <- pred_female - pred_male
-  ame_female <- mean(marginal_effects_female, na.rm = TRUE)
-  se_female <- sd(marginal_effects_female, na.rm = TRUE) / sqrt(length(marginal_effects_female))
-  z_female <- ame_female / se_female
-  p_female <- 2 * pnorm(-abs(z_female))
-  
-  results$female <- list(AME = ame_female, SE = se_female, z = z_female, p = p_female)
-  cat("✓\n")
-  
-  # 4. WEALTH INDEX (Continuous)
-  cat("  • Wealth index... ")
-  
-  coef_wealth <- coef(model)["wealth_index"]
-  ame_wealth <- coef_wealth * mean(pred_prob * (1 - pred_prob), na.rm = TRUE)
-  se_wealth <- summary(model)$coefficients["wealth_index", "Std. Error"] * 
-               mean(pred_prob * (1 - pred_prob), na.rm = TRUE)
-  z_wealth <- ame_wealth / se_wealth
-  p_wealth <- 2 * pnorm(-abs(z_wealth))
-  
-  results$wealth_index <- list(AME = ame_wealth, SE = se_wealth, z = z_wealth, p = p_wealth)
-  cat("✓\n")
-  
-  return(results)
+  stop("Failed to read RDS file: ", file_path)
 }
 
-# Calculate marginal effects with timing
+model_employment   <- readRDS_safe("output/models/model_employment_main.rds")
+model_org_x_group  <- readRDS_safe("output/models/model_org_x_group.rds")
+model_data         <- readRDS_safe("output/models/model_data.rds")
+
+cat("Model data loaded:", nrow(model_data), "observations\n")
+cat("Computing AMEs on full model sample (no subsampling)...\n")
+
+# ── CORE AME FUNCTION ─────────────────────────────────────────────────────────
+# For binary variables: AME = mean(P(Y=1|X=1) - P(Y=1|X=0)) across all obs
+# For continuous variables: AME = coef * mean(P*(1-P)) [delta method]
+
+compute_ame_binary <- function(model, data, var_name) {
+  data0 <- data; data1 <- data
+  data0[[var_name]] <- 0
+  data1[[var_name]] <- 1
+  pred0 <- predict(model, newdata = data0, type = "response")
+  pred1 <- predict(model, newdata = data1, type = "response")
+  diffs <- pred1 - pred0
+  list(
+    AME = mean(diffs, na.rm = TRUE),
+    SE  = sd(diffs, na.rm = TRUE) / sqrt(sum(!is.na(diffs)))
+  )
+}
+
+compute_ame_continuous <- function(model, data, var_name) {
+  coef_val <- coef(model)[var_name]
+  pred_prob <- predict(model, newdata = data, type = "response")
+  avg_density <- mean(pred_prob * (1 - pred_prob), na.rm = TRUE)
+  ame <- coef_val * avg_density
+  se_raw <- summary(model)$coefficients[var_name, "Std. Error"]
+  se  <- se_raw * avg_density
+  list(AME = ame, SE = se)
+}
+
+compute_ame_group <- function(model, data, group_label) {
+  data_ref   <- data; data_ref$social_group   <- factor("Brahmins",   levels = levels(data$social_group))
+  data_group <- data; data_group$social_group <- factor(group_label, levels = levels(data$social_group))
+  pred_ref   <- predict(model, newdata = data_ref,   type = "response")
+  pred_group <- predict(model, newdata = data_group, type = "response")
+  diffs <- pred_group - pred_ref
+  list(
+    AME = mean(diffs, na.rm = TRUE),
+    SE  = sd(diffs, na.rm = TRUE) / sqrt(sum(!is.na(diffs)))
+  )
+}
+
+finalize_ame <- function(res, label) {
+  z <- res$AME / res$SE
+  p <- 2 * pnorm(-abs(z))
+  data.frame(
+    Variable      = label,
+    AME           = res$AME,
+    AME_pp        = res$AME * 100,
+    SE            = res$SE,
+    CI_lower_pp   = (res$AME - 1.96 * res$SE) * 100,
+    CI_upper_pp   = (res$AME + 1.96 * res$SE) * 100,
+    z_value       = z,
+    p_value       = p,
+    sig = case_when(
+      p < 0.001 ~ "***", p < 0.01 ~ "**",
+      p < 0.05 ~ "*",   p < 0.1  ~ ".",
+      TRUE ~ ""
+    ),
+    stringsAsFactors = FALSE
+  )
+}
+
+# ── COMPUTE AMES FOR MAIN MODEL ───────────────────────────────────────────────
+cat("\n[1/4] Computing main variable AMEs...\n")
+
 start_time <- Sys.time()
 
-marginal_effects <- tryCatch({
-  calculate_robust_ame(model_employment, analysis_sample)
-}, error = function(e) {
-  cat("\nERROR in marginal effects calculation:\n")
-  cat(e$message, "\n")
-  cat("\nThis may be due to factor level mismatches.\n")
-  cat("Attempting alternative calculation method...\n\n")
-  
-  # FALLBACK: Use coefficient-based approximation
-  cat("Using coefficient approximation method...\n")
-  
-  avg_pred_prob <- mean(fitted(model_employment), na.rm = TRUE)
-  scaling_factor <- avg_pred_prob * (1 - avg_pred_prob)
-  
-  coefs <- coef(model_employment)
-  
-  list(
-    org_membership = list(
-      AME = coefs["org_membership"] * scaling_factor,
-      SE = NA, z = NA, p = NA
-    ),
-    education_years = list(
-      AME = coefs["education_years"] * scaling_factor,
-      SE = NA, z = NA, p = NA
-    ),
-    female = list(
-      AME = coefs["female"] * scaling_factor,
-      SE = NA, z = NA, p = NA
-    ),
-    wealth_index = list(
-      AME = coefs["wealth_index"] * scaling_factor,
-      SE = NA, z = NA, p = NA
-    )
+ame_list <- list(
+  finalize_ame(compute_ame_binary(model_employment, model_data, "org_membership"),
+               "Organisation Membership"),
+
+  finalize_ame(compute_ame_continuous(model_employment, model_data, "education_years"),
+               "Education (per year)"),
+  finalize_ame(compute_ame_binary(model_employment, model_data, "female"),
+               "Female (vs Male)"),
+  finalize_ame(compute_ame_continuous(model_employment, model_data, "wealth_index"),
+               "Wealth Index"),
+  finalize_ame(compute_ame_binary(model_employment, model_data, "urban_resident"),
+               "Urban (vs Rural)")
+)
+
+cat("  ✓ Completed in", round(difftime(Sys.time(), start_time, units = "secs"), 1), "seconds\n")
+
+# ── GROUP AMES (all groups vs Brahmins) ───────────────────────────────────────
+cat("\n[2/4] Computing group AMEs (each group vs Brahmins)...\n")
+
+groups_to_test <- c("Forward_castes", "OBCs", "Dalits", "Adivasis", "Muslims", "Other_Religions")
+
+group_ame_list <- lapply(groups_to_test, function(g) {
+  cat("  •", g, "... ")
+  res <- tryCatch(
+    compute_ame_group(model_employment, model_data, g),
+    error = function(e) { cat("ERROR\n"); return(NULL) }
   )
+  if (is.null(res)) return(NULL)
+  cat("✓\n")
+  finalize_ame(res, paste0(g, " (vs Brahmins)"))
 })
+group_ame_list <- Filter(Negate(is.null), group_ame_list)
 
-end_time <- Sys.time()
+# ── GROUP-SPECIFIC SOCIAL CAPITAL AMES (from interaction model) ───────────────
+cat("\n[3/4] Computing group-specific org_membership AMEs (from interaction model)...\n")
 
-cat("\n✓ Calculation completed in", 
-    round(difftime(end_time, start_time, units = "secs"), 1), "seconds\n")
-
-# ==============================================================================
-# FORMAT AND DISPLAY RESULTS
-# ==============================================================================
-
-ame_results <- data.frame(
-  Variable = c("Organization Membership", "Education (per year)", 
-               "Female", "Wealth Index"),
-  AME = c(
-    marginal_effects$org_membership$AME,
-    marginal_effects$education_years$AME,
-    marginal_effects$female$AME,
-    marginal_effects$wealth_index$AME
-  ),
-  SE = c(
-    marginal_effects$org_membership$SE,
-    marginal_effects$education_years$SE,
-    marginal_effects$female$SE,
-    marginal_effects$wealth_index$SE
-  ),
-  z_value = c(
-    marginal_effects$org_membership$z,
-    marginal_effects$education_years$z,
-    marginal_effects$female$z,
-    marginal_effects$wealth_index$z
-  ),
-  p_value = c(
-    marginal_effects$org_membership$p,
-    marginal_effects$education_years$p,
-    marginal_effects$female$p,
-    marginal_effects$wealth_index$p
-  ),
-  stringsAsFactors = FALSE
-)
-
-# Add derived columns
-ame_results <- ame_results %>%
-  mutate(
-    AME_percentage = AME * 100,
-    CI_lower = if_else(is.na(SE), NA_real_, (AME - 1.96 * SE) * 100),
-    CI_upper = if_else(is.na(SE), NA_real_, (AME + 1.96 * SE) * 100),
-    sig = case_when(
-      is.na(p_value) ~ "",
-      p_value < 0.001 ~ "***",
-      p_value < 0.01 ~ "**",
-      p_value < 0.05 ~ "*",
-      p_value < 0.1 ~ ".",
-      TRUE ~ ""
-    )
+group_org_ame_list <- lapply(levels(model_data$social_group), function(g) {
+  sub_data <- model_data %>% filter(social_group == g)
+  if (nrow(sub_data) < 50) return(NULL)
+  cat("  •", g, "... ")
+  res <- tryCatch(
+    compute_ame_binary(model_org_x_group, sub_data, "org_membership"),
+    error = function(e) { cat("ERROR\n"); return(NULL) }
   )
+  if (is.null(res)) return(NULL)
+  cat("✓\n")
+  finalize_ame(res, paste0("Org membership | ", g))
+})
+group_org_ame_list <- Filter(Negate(is.null), group_org_ame_list)
 
-# Display results
-cat("\n")
-print_section("AVERAGE MARGINAL EFFECTS RESULTS")
+cat("\n[4/4] Assembling and saving results...\n")
 
-display_cols <- c("Variable", "AME_percentage", "SE", "CI_lower", "CI_upper", "p_value", "sig")
-if (all(is.na(ame_results$SE))) {
-  display_cols <- c("Variable", "AME_percentage")
-  cat("\nNote: Standard errors not available (approximation method used)\n\n")
-}
+# ── ASSEMBLE RESULTS ──────────────────────────────────────────────────────────
+ame_results         <- bind_rows(ame_list)
+group_ame_results   <- bind_rows(group_ame_list)
+group_org_ame_res   <- bind_rows(group_org_ame_list)
 
-print(ame_results %>% 
-        select(all_of(display_cols)) %>%
-        mutate(across(where(is.numeric), ~round(., 3))),
-      row.names = FALSE)
+# Save all outputs
+write.csv(ame_results,       "output/tables/marginal_effects.csv",            row.names = FALSE)
+write.csv(group_ame_results, "output/tables/group_marginal_effects.csv",      row.names = FALSE)
+write.csv(group_org_ame_res, "output/tables/group_social_capital_ames.csv",   row.names = FALSE)
 
-# Save results
-write.csv(ame_results, "output/tables/marginal_effects.csv", row.names = FALSE)
-cat("\n✓ Results saved to output/tables/marginal_effects.csv\n")
-
-# ==============================================================================
-# INTERPRETATION
-# ==============================================================================
-
-print_section("INTERPRETATION OF RESULTS")
-
-cat("\n>>> EMPLOYMENT PROBABILITY EFFECTS <<<\n\n")
-
-for (i in 1:nrow(ame_results)) {
-  row <- ame_results[i, ]
-  cat(sprintf("%d. %s:\n", i, toupper(row$Variable)))
-  
-  if (!is.na(row$CI_lower)) {
-    cat(sprintf("   Effect: %+.2f percentage points", row$AME_percentage))
-    cat(sprintf(" [95%% CI: %.2f, %.2f] %s\n", row$CI_lower, row$CI_upper, row$sig))
-  } else {
-    cat(sprintf("   Effect: %+.2f percentage points\n", row$AME_percentage))
-  }
-  
-  # Interpretation
-  if (row$Variable == "Organization Membership") {
-    cat("   → Being in an organization is associated with a")
-    cat(sprintf(" %.1f pp %s in employment probability\n", 
-                abs(row$AME_percentage), 
-                ifelse(row$AME_percentage > 0, "increase", "decrease")))
-  } else if (row$Variable == "Education (per year)") {
-    cat("   → Each additional year of education increases employment")
-    cat(sprintf(" probability by %.2f pp\n", row$AME_percentage))
-  } else if (row$Variable == "Female") {
-    cat("   → Women have")
-    cat(sprintf(" %.1f pp %s employment probability than men\n", 
-                abs(row$AME_percentage),
-                ifelse(row$AME_percentage > 0, "higher", "lower")))
-  } else if (row$Variable == "Wealth Index") {
-    cat("   → Each unit increase in wealth index is associated with")
-    cat(sprintf(" %.2f pp %s in employment probability\n", 
-                abs(row$AME_percentage),
-                ifelse(row$AME_percentage > 0, "increase", "decrease")))
-  }
-  cat("\n")
-}
-
-# ==============================================================================
-# COMPARISON WITH ODDS RATIOS
-# ==============================================================================
-
-cat("=== ODDS RATIOS VS MARGINAL EFFECTS ===\n\n")
-
-org_or <- exp(coef(model_employment)["org_membership"])
-edu_or <- exp(coef(model_employment)["education_years"])
-female_or <- exp(coef(model_employment)["female"])
-wealth_or <- exp(coef(model_employment)["wealth_index"])
-
-comparison <- data.frame(
-  Variable = c("Organization", "Education", "Female", "Wealth"),
-  Odds_Ratio = c(org_or, edu_or, female_or, wealth_or),
-  OR_pct_change = c((org_or-1)*100, (edu_or-1)*100, (female_or-1)*100, (wealth_or-1)*100),
-  Marginal_Effect_pp = ame_results$AME_percentage
+# ── DISPLAY ───────────────────────────────────────────────────────────────────
+print_section("AVERAGE MARGINAL EFFECTS — MAIN VARIABLES")
+cat("(Percentage point change in employment probability)\n\n")
+print(
+  ame_results %>%
+    select(Variable, AME_pp, CI_lower_pp, CI_upper_pp, p_value, sig) %>%
+    mutate(across(where(is.numeric), ~round(., 3))),
+  row.names = FALSE
 )
 
-print(comparison %>% mutate(across(where(is.numeric), ~round(., 2))), row.names = FALSE)
-
-cat("\nNote: Marginal effects (pp) are more interpretable than odds ratios.\n")
-
-# ==============================================================================
-# MODEL FIT STATISTICS
-# ==============================================================================
-
-cat("\n")
-print_section("MODEL FIT STATISTICS")
-
-mcfadden_r2 <- 1 - (model_employment$deviance / model_employment$null.deviance)
-
-fit_stats <- data.frame(
-  Metric = c("N", "AIC", "McFadden R²", "Log-Likelihood"),
-  Value = c(
-    nobs(model_employment),
-    round(AIC(model_employment), 1),
-    round(mcfadden_r2, 4),
-    round(logLik(model_employment)[1], 1)
-  )
+print_section("AVERAGE MARGINAL EFFECTS — SOCIAL GROUPS vs BRAHMINS")
+print(
+  group_ame_results %>%
+    select(Variable, AME_pp, CI_lower_pp, CI_upper_pp, p_value, sig) %>%
+    mutate(across(where(is.numeric), ~round(., 3))),
+  row.names = FALSE
 )
 
-print(fit_stats, row.names = FALSE)
-
-cat("\n✓ Marginal effects analysis complete!\n")
-
-# ==============================================================================
-# MUSLIM-SPECIFIC MARGINAL EFFECTS
-# ==============================================================================
-
-print_section("MUSLIM DISADVANTAGE MARGINAL EFFECTS")
-
-# Calculate marginal effect for Muslim vs Brahmin (reference group)
-calculate_muslim_ame <- function(model, data) {
-  # Create counterfactual datasets
-  data_brahmin <- data
-  data_muslim <- data
-  
-  # Set all observations to Brahmin (reference group)
-  data_brahmin$social_group <- "Brahmins"
-  # Set all observations to Muslim
-  data_muslim$social_group <- "Muslims"
-  
-  # Predict probabilities
-  pred_brahmin <- predict(model, newdata = data_brahmin, type = "response")
-  pred_muslim <- predict(model, newdata = data_muslim, type = "response")
-  
-  # Marginal effect = Muslim prob - Brahmin prob
-  marginal_effects <- pred_muslim - pred_brahmin
-  ame <- mean(marginal_effects, na.rm = TRUE)
-  se <- sd(marginal_effects, na.rm = TRUE) / sqrt(length(marginal_effects))
-  
-  return(list(AME = ame, SE = se, z = ame/se, 
-              p = 2 * (1 - pnorm(abs(ame/se)))))
-}
-
-# Calculate Muslim disadvantage
-muslim_ame <- calculate_muslim_ame(model_employment, analysis_sample)
-
-cat("Muslim vs Brahmin Marginal Effect:\n")
-cat(sprintf("AME: %.3f (%.3f percentage points)\n", 
-            muslim_ame$AME, muslim_ame$AME * 100))
-cat(sprintf("95%% CI: [%.3f, %.3f]\n",
-            (muslim_ame$AME - 1.96 * muslim_ame$SE) * 100,
-            (muslim_ame$AME + 1.96 * muslim_ame$SE) * 100))
-cat(sprintf("p-value: %.4f\n", muslim_ame$p))
-
-# Add to your existing AME results
-muslim_row <- data.frame(
-  Variable = "Muslim (vs Brahmin)",
-  AME = muslim_ame$AME,
-  SE = muslim_ame$SE,
-  z_value = muslim_ame$z,
-  p_value = muslim_ame$p,
-  AME_percentage = muslim_ame$AME * 100,
-  CI_lower = (muslim_ame$AME - 1.96 * muslim_ame$SE) * 100,
-  CI_upper = (muslim_ame$AME + 1.96 * muslim_ame$SE) * 100,
-  sig = ifelse(muslim_ame$p < 0.001, "***",
-               ifelse(muslim_ame$p < 0.01, "**",
-                      ifelse(muslim_ame$p < 0.05, "*",
-                             ifelse(muslim_ame$p < 0.1, ".", ""))))
+print_section("ORG MEMBERSHIP AME BY SOCIAL GROUP (Interaction Model)")
+cat("A positive AME = org membership increases employment probability for this group\n")
+cat("Compare across groups to see differential social capital returns\n\n")
+print(
+  group_org_ame_res %>%
+    select(Variable, AME_pp, CI_lower_pp, CI_upper_pp, p_value, sig) %>%
+    mutate(across(where(is.numeric), ~round(., 3))),
+  row.names = FALSE
 )
 
-# Combine with existing results
-ame_results_enhanced <- rbind(ame_results, muslim_row)
-
-print(ame_results_enhanced %>% 
-        select(Variable, AME_percentage, CI_lower, CI_upper, p_value, sig) %>%
-        mutate(across(where(is.numeric), ~round(., 3))),
-      row.names = FALSE)
+cat("\n✓ Marginal effects analysis complete\n")

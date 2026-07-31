@@ -1,0 +1,7 @@
+"term","estimate","std.error","p.value","group","odds_ratio","sig","interpretation"
+"social_groupForward_castes:urban_resident",-0.0713691609948118,0.109120268662603,NA,"Forward_castes",0.931118096190794,"","Not significant"
+"social_groupOBCs:urban_resident",-0.202736489305223,0.126639368889862,NA,"OBCs",0.816493367814946,"","Not significant"
+"social_groupDalits:urban_resident",-0.152962954817024,0.0875257108902956,NA,"Dalits",0.858161511972788,"","Not significant"
+"social_groupAdivasis:urban_resident",-0.193815280962686,0.147996428103532,NA,"Adivasis",0.82381006361666,"","Not significant"
+"social_groupMuslims:urban_resident",-0.0198862827000221,0.118678501297024,NA,"Muslims",0.980310145191346,"","Not significant"
+"social_groupOther_Religions:urban_resident",0.090227542665156,0.17640146788242,NA,"Other_Religions",1.09442328336582,"","Not significant"

@@ -1,9 +1,9 @@
 "Variable","Missing","Percent"
-"employed",0,0
+"employed",1,0
 "org_membership",300,0.15
-"general_trust",326,0.16
-"education_years",232,0.11
-"social_group",81,0.04
-"female",0,0
-"age",3,0
+"education_years",233,0.11
+"social_group",82,0.04
+"female",1,0
+"age",4,0
 "wealth_index",111,0.05
+"urban_resident",1,0

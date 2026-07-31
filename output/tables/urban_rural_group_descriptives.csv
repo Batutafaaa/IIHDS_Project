@@ -1,0 +1,15 @@
+"social_group","urban_rural","n","employment_rate","mean_education","mean_wealth","org_membership_rate"
+"Brahmins","Rural",5525,46.61,6.38,16.82,7.08
+"Brahmins","Urban",4654,31.67,9.25,22.82,6.64
+"Forward_castes","Rural",19341,49.74,5.85,16.67,14.07
+"Forward_castes","Urban",13446,34.14,8.53,22.18,10.96
+"OBCs","Rural",47196,50.89,4.6,13.67,8.15
+"OBCs","Urban",21079,36.37,6.72,19.68,10.11
+"Dalits","Rural",30371,49.27,3.93,12.28,8.52
+"Dalits","Urban",12766,36.42,5.78,18.19,7
+"Adivasis","Rural",14909,55.88,3.65,10.07,7.94
+"Adivasis","Urban",2471,38,6.66,18.64,12.37
+"Muslims","Rural",14711,39.67,3.58,12.58,4.87
+"Muslims","Urban",12630,30.74,5.1,18.56,6.33
+"Other_Religions","Rural",3032,40.93,6.86,22,14.81
+"Other_Religions","Urban",2356,35.91,8.69,23.41,15.79

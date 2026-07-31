@@ -1,0 +1,7 @@
+"term","estimate","std.error","p.value","pct_effect","sig","interpretation"
+"social_groupForward_castes:urban_resident",0.0326134194519525,0.0520976244082539,0.53131376230097,3.3,"","+3.3% wage change from urban vs rural (relative to Brahmin urban gain)"
+"social_groupOBCs:urban_resident",-0.194567725553966,0.0489928675915665,7.15608829331376e-05,-17.7,"***","-17.7% wage change from urban vs rural (relative to Brahmin urban gain)"
+"social_groupDalits:urban_resident",-0.2992757660747,0.0497100076137262,1.75084775235217e-09,-25.9,"***","-25.9% wage change from urban vs rural (relative to Brahmin urban gain)"
+"social_groupAdivasis:urban_resident",0.010202419644139,0.060656527832286,0.866426687288374,1,"","+1% wage change from urban vs rural (relative to Brahmin urban gain)"
+"social_groupMuslims:urban_resident",-0.429357058913953,0.0534081426759759,9.22937345729695e-16,-34.9,"***","-34.9% wage change from urban vs rural (relative to Brahmin urban gain)"
+"social_groupOther_Religions:urban_resident",-0.382073713927771,0.0785601191964792,1.15681732528019e-06,-31.8,"***","-31.8% wage change from urban vs rural (relative to Brahmin urban gain)"

@@ -1,195 +1,228 @@
 # ==============================================================================
-# FINAL SUMMARY & REPORT GENERATION
+# 07_FINAL REPORT — Comprehensive Research Findings Summary
+# ==============================================================================
+# Assembles all outputs from scripts 03–13 into a single narrative summary.
+# Reads from saved CSV/RDS files rather than relying on environment objects,
+# so it can be run independently.
 # ==============================================================================
 
 print_section("COMPREHENSIVE RESEARCH FINDINGS SUMMARY")
 
-# Load all the enhanced analysis files
-wealth_by_group <- read.csv("output/tables/wealth_by_group.csv")
-group_comparison <- read.csv("output/tables/group_comparison_detailed.csv")
-muslim_education_emp <- read.csv("output/tables/muslim_education_employment.csv")
-muslim_gender_gap <- read.csv("output/tables/muslim_gender_gap.csv")
-ame_results_enhanced <- read.csv("output/tables/marginal_effects.csv")
+# ── LOAD ALL OUTPUTS ──────────────────────────────────────────────────────────
+wealth_by_group     <- read.csv("output/tables/wealth_by_group.csv")
+group_comparison    <- read.csv("output/tables/group_comparison_detailed.csv")
+ame_results         <- read.csv("output/tables/marginal_effects.csv")
+group_ame_results   <- tryCatch(read.csv("output/tables/group_marginal_effects.csv"), error = function(e) NULL)
+group_org_ames      <- tryCatch(read.csv("output/tables/group_social_capital_ames.csv"), error = function(e) NULL)
+robustness_table    <- tryCatch(read.csv("output/tables/robustness_comparison.csv"), error = function(e) NULL)
+ur_descriptive      <- tryCatch(read.csv("output/tables/urban_rural_group_descriptives.csv"), error = function(e) NULL)
+ur_gap              <- tryCatch(read.csv("output/tables/urban_rural_employment_gap.csv"), error = function(e) NULL)
+interaction_org     <- tryCatch(read.csv("output/tables/interaction_org_x_group.csv"), error = function(e) NULL)
+earnings_summary    <- tryCatch(read.csv("output/tables/earnings_summary.csv"), error = function(e) NULL)
+nrega_summary       <- tryCatch(read.csv("output/tables/nrega_participation.csv"), error = function(e) NULL)
+heckman_wages       <- tryCatch(read.csv("output/tables/wage_penalty_heckman.csv"), error = function(e) NULL)
+ols_wages           <- tryCatch(read.csv("output/tables/wage_penalty_ols.csv"), error = function(e) NULL)
+fit_stats           <- tryCatch(read.csv("output/tables/model_fit_statistics.csv"), error = function(e) NULL)
+muslim_edu_emp      <- tryCatch(read.csv("output/tables/muslim_education_employment.csv"), error = function(e) NULL)
+muslim_gender_gap   <- tryCatch(read.csv("output/tables/muslim_gender_gap.csv"), error = function(e) NULL)
 
-# Extract key statistics
-muslim_rank_employment <- group_comparison$employment_rank[group_comparison$social_group == "Muslims"]
-muslim_rank_wealth <- group_comparison$wealth_rank[group_comparison$social_group == "Muslims"]
-muslim_rank_education <- group_comparison$education_rank[group_comparison$social_group == "Muslims"]
+cat(">>> ANALYSIS SCOPE: Full India (Urban + Rural) — N =",
+    format(sum(group_comparison$n), big.mark = ","), "individuals <<<\n\n")
 
-# Get Muslim marginal effect (if calculated)
-muslim_marginal_effect <- if ("Muslim (vs Brahmin)" %in% ame_results_enhanced$Variable) {
-  ame_results_enhanced$AME_percentage[ame_results_enhanced$Variable == "Muslim (vs Brahmin)"]
+# ── 1. WEALTH-EMPLOYMENT PARADOX ─────────────────────────────────────────────
+wealth_emp_cor <- cor(wealth_by_group$mean_wealth, wealth_by_group$employment_rate,
+                      use = "complete.obs")
+cat("1. WEALTH-EMPLOYMENT PARADOX:\n")
+cat("   • Correlation (wealth vs employment rate, group-level):",
+    round(wealth_emp_cor, 3), "\n")
+wealth_ame <- ame_results$AME_pp[ame_results$Variable == "Wealth Index"]
+if (length(wealth_ame) > 0)
+  cat("   • Marginal effect of wealth:", round(wealth_ame, 2), "pp per unit\n")
+cat("   • Implication: Employment ≠ prosperity in rural India;\n")
+cat("     high rates among poorest groups reflect distress labour\n\n")
+
+# ── 2. SOCIAL CAPITAL ────────────────────────────────────────────────────────
+cat("2. SOCIAL CAPITAL EFFECTS:\n")
+org_ame <- ame_results$AME_pp[ame_results$Variable == "Organisation Membership"]
+trust_ame <- ame_results$AME_pp[ame_results$Variable == "General Trust"]
+org_sig <- ame_results$sig[ame_results$Variable == "Organisation Membership"]
+trust_sig <- ame_results$sig[ame_results$Variable == "General Trust"]
+
+if (length(org_ame) > 0)
+  cat(sprintf("   • Org membership: %+.2f pp %s\n", org_ame,
+              ifelse(length(org_sig) > 0, org_sig, "")))
+if (length(trust_ame) > 0)
+  cat(sprintf("   • General trust:  %+.2f pp %s\n", trust_ame,
+              ifelse(length(trust_sig) > 0, trust_sig, "")))
+
+org_rate <- round(100 * wealth_by_group$org_membership_rate, 1)
+cat("   • Org membership rates by group (lowest to highest):\n")
+for (i in seq_len(nrow(wealth_by_group))) {
+  cat(sprintf("     - %-20s %.1f%%\n",
+              wealth_by_group$social_group[i],
+              wealth_by_group$org_membership_rate[i] * 100))
+}
+
+if (!is.null(group_org_ames)) {
+  cat("\n   • Group-differentiated social capital returns (org_membership AME):\n")
+  for (i in seq_len(nrow(group_org_ames))) {
+    cat(sprintf("     %-40s %+.2f pp %s\n",
+                group_org_ames$Variable[i],
+                group_org_ames$AME_pp[i],
+                group_org_ames$sig[i]))
+  }
+}
+cat("\n")
+
+# ── 3. HUMAN CAPITAL ─────────────────────────────────────────────────────────
+cat("3. HUMAN CAPITAL (EDUCATION):\n")
+edu_ame <- ame_results$AME_pp[ame_results$Variable == "Education (per year)"]
+edu_sig <- ame_results$sig[ame_results$Variable == "Education (per year)"]
+if (length(edu_ame) > 0)
+  cat(sprintf("   • Each additional year: %+.2f pp %s\n", edu_ame,
+              ifelse(length(edu_sig) > 0, edu_sig, "")))
+cat("   • Education by group:\n")
+for (i in order(group_comparison$mean_education, decreasing = TRUE)) {
+  cat(sprintf("     %-20s %.1f years\n",
+              group_comparison$social_group[i],
+              group_comparison$mean_education[i]))
+}
+cat("\n")
+
+# ── 4. URBAN-RURAL DYNAMICS ──────────────────────────────────────────────────
+cat("4. WITHIN-STATE URBAN-RURAL DYNAMICS:\n")
+if (!is.null(ur_gap)) {
+  cat("   Urban-rural employment gap by group (positive = urban advantage):\n")
+  for (i in seq_len(nrow(ur_gap))) {
+    if (!is.na(ur_gap$urban_rural_gap[i]))
+      cat(sprintf("     %-20s %+.1f pp (%s)\n",
+                  ur_gap$social_group[i],
+                  ur_gap$urban_rural_gap[i],
+                  ur_gap$direction[i]))
+  }
 } else {
-  NA
+  cat("   [Run script 13 to populate this section]\n")
 }
+cat("\n")
 
-# FINAL SUMMARY OUTPUT
-sample_type <- if (exists("rural_only") && rural_only) "RURAL INDIA" else "ALL INDIA"
-cat("\n>>> ANALYSIS SCOPE:", sample_type, "<<<\n")
-cat(">>> SAMPLE SIZE:", nrow(analysis_data), "INDIVIDUALS <<<\n")
-
-cat("\n1. WEALTH-EMPLOYMENT PARADOX (Structural Anomaly):\n")
-cat("   • Correlation:", round(wealth_emp_cor, 3), "(Strong Negative)\n")
-cat("   • Wealthier groups have SYSTEMATICALLY LOWER employment rates\n")
-cat(sprintf(
-  "   • Marginal effect: Each wealth unit reduces employment by %.1f pp%s\n",
-  abs(ame_results$AME_percentage[4]),
-  ifelse(ame_results$p_value[4] < 0.05, " (SIGNIFICANT)", "")
-))
-cat("   • Implications: Traditional human capital theory fails in rural labor markets\n")
-
-cat("\n2. SOCIAL CAPITAL EFFECTS (Policy Leverage Points):\n")
-cat(sprintf(
-  "   • Organization membership: +%.1f pp employment probability%s\n",
-  ame_results$AME_percentage[1],
-  ifelse(ame_results$p_value[1] < 0.05, " (SIGNIFICANT)", "")
-))
-org_membership_rate <- round(100 * mean(analysis_data$org_membership, na.rm = TRUE), 1)
-cat(sprintf("   • Only %.1f%% of rural population in organizations (Massive untapped potential)\n", org_membership_rate))
-
-cat("\n3. HUMAN CAPITAL RETURNS (Education Payoff):\n")
-cat(sprintf(
-  "   • Education: +%.1f pp employment probability per year%s\n",
-  ame_results$AME_percentage[2],
-  ifelse(ame_results$p_value[2] < 0.05, " (SIGNIFICANT)", "")
-))
-cat("   • Linear returns suggest no education threshold effects in rural markets\n")
-
-cat("\n4. GENDER INEQUALITY (Critical Concern):\n")
-cat(sprintf(
-  "   • Female employment penalty: %.1f percentage points%s\n",
-  abs(ame_results$AME_percentage[3]),
-  ifelse(ame_results$p_value[3] < 0.05, " (SIGNIFICANT)", "")
-))
-cat("   • One of the largest gender gaps documented in labor literature\n")
-
-cat("\n5. MUSLIM DISADVANTAGE - MULTIDIMENSIONAL EXCLUSION:\n")
-cat(sprintf("   • Employment rank: %d/7 social groups\n", muslim_rank_employment))
-cat(sprintf("   • Wealth rank: %d/7 social groups\n", muslim_rank_wealth))
-cat(sprintf("   • Education rank: %d/7 social groups\n", muslim_rank_education))
-
-if (!is.na(muslim_marginal_effect)) {
-  cat(sprintf(
-    "   • NET DISADVANTAGE: %.1f pp lower employment after controlling all factors%s\n",
-    abs(muslim_marginal_effect),
-    ifelse(ame_results_enhanced$p_value[ame_results_enhanced$Variable == "Muslim (vs Brahmin)"] < 0.05,
-      " (DISCRIMINATION EVIDENCE)", ""
-    )
-  ))
+# ── 5. SOCIAL GROUP PENALTIES ─────────────────────────────────────────────────
+cat("5. SOCIAL GROUP EMPLOYMENT PENALTIES (vs Brahmins):\n")
+if (!is.null(group_ame_results)) {
+  for (i in seq_len(nrow(group_ame_results))) {
+    cat(sprintf("   %-35s %+.2f pp [%.2f, %.2f] %s\n",
+                group_ame_results$Variable[i],
+                group_ame_results$AME_pp[i],
+                group_ame_results$CI_lower_pp[i],
+                group_ame_results$CI_upper_pp[i],
+                group_ame_results$sig[i]))
+  }
 }
+cat("\n")
 
-# Educational crisis details
-cat("   • Educational Crisis:\n")
-brahmin_edu <- group_comparison$mean_education[group_comparison$social_group == "Brahmins"]
-muslim_edu <- group_comparison$mean_education[group_comparison$social_group == "Muslims"]
-cat(sprintf("     - %.1f year gap vs Brahmins\n", brahmin_edu - muslim_edu))
-cat(sprintf("     - Muslim average: %.1f years vs Brahmin: %.1f years\n", muslim_edu, brahmin_edu))
+# ── 6. GEOGRAPHIC TRAP TEST (ROBUSTNESS) ─────────────────────────────────────
+cat("6. GEOGRAPHIC TRAP TEST — State FE vs District FE:\n")
+cat("   Method: penalty shrinkage from state FE → district FE reveals\n")
+cat("           how much of the disadvantage is geographic vs identity-based\n")
+if (!is.null(robustness_table)) {
+  for (g in c("social_groupMuslims", "social_groupDalits", "social_groupAdivasis")) {
+    m1 <- robustness_table[robustness_table$Variable == g &
+                             grepl("State FE", robustness_table$Model), ]
+    m2 <- robustness_table[robustness_table$Variable == g &
+                             grepl("District FE", robustness_table$Model), ]
+    if (nrow(m1) > 0 && nrow(m2) > 0) {
+      shrink <- 1 - abs(m2$Estimate[1]) / abs(m1$Estimate[1])
+      cat(sprintf("   %-12s State FE: %.3f | District FE: %.3f | Shrinkage: %.0f%%\n",
+                  gsub("social_group", "", g),
+                  m1$Estimate[1], m2$Estimate[1], 100 * shrink))
+    }
+  }
+}
+cat("\n")
 
-# Education-employment relationship for Muslims
-cat("   • Education-Employment Returns for Muslims:\n")
-for (i in 1:nrow(muslim_education_emp)) {
-  row <- muslim_education_emp[i, ]
-  if (!is.na(row$employment_rate) & row$n > 100) {
-    cat(sprintf(
-      "     - %s: %.1f%% employed (n=%d)\n",
-      row$education_cat, 100 * row$employment_rate, row$n
-    ))
+# ── 7. EMPLOYMENT QUALITY ────────────────────────────────────────────────────
+cat("7. EMPLOYMENT QUALITY (Rural):\n")
+if (!is.null(earnings_summary)) {
+  cat("   Annual earnings (mean) and gap vs Forward/Upper castes:\n")
+  for (i in seq_len(nrow(earnings_summary))) {
+    cat(sprintf("     %-20s ₹%s  (%+.1f%%)\n",
+                earnings_summary$social_group_broad[i],
+                format(round(earnings_summary$mean_earnings[i]), big.mark = ","),
+                earnings_summary$gap_vs_forward[i]))
   }
 }
 
-# Internal gender dynamics
-if (nrow(muslim_gender_gap) == 2) {
-  male_emp <- muslim_gender_gap$employment_rate[muslim_gender_gap$gender == "Male"]
-  female_emp <- muslim_gender_gap$employment_rate[muslim_gender_gap$gender == "Female"]
-  male_edu <- muslim_gender_gap$mean_education[muslim_gender_gap$gender == "Male"]
-  female_edu <- muslim_gender_gap$mean_education[muslim_gender_gap$gender == "Female"]
-
-  cat(sprintf(
-    "   • Internal Gender Gap: %.1f pp (M: %.1f%%, F: %.1f%%)\n",
-    100 * (male_emp - female_emp), 100 * male_emp, 100 * female_emp
-  ))
-  cat(sprintf(
-    "   • Education Gender Gap: %.1f years (M: %.1f, F: %.1f)\n",
-    male_edu - female_edu, male_edu, female_edu
-  ))
-}
-
-cat("\n6. SOCIAL GROUP HIERARCHY (Employment Rates):\n")
-for (i in 1:min(7, nrow(group_comparison))) {
-  group <- group_comparison[i, ]
-  cat(sprintf(
-    "   %d. %s: %.1f%% employed\n",
-    i, group$social_group, 100 * group$employment_rate
-  ))
-}
-
-cat("\n7. POLICY IMPLICATIONS (Evidence-Based Priorities):\n")
-cat("   • URGENT: Address Muslim educational deficit (3.4 year gap)\n")
-cat("   • LEVERAGE SOCIAL CAPITAL: +1.0 pp return from organizational membership\n")
-cat("   • SCALE EDUCATION: +0.1 pp return per education year\n")
-cat("   • TARGET GENDER: Implement women-specific employment programs\n")
-cat("   • UNDERSTAND PARADOX: Investigate why wealth reduces employment\n")
-cat("   • COMMUNITY-LED: Focus on Muslim-concentrated area development\n")
-
-cat("\n8. MARGINAL EFFECTS SUMMARY (Practical Significance):\n")
-for (i in 1:nrow(ame_results)) {
-  row <- ame_results[i, ]
-  if (row$p_value < 0.05) {
-    direction <- ifelse(row$AME_percentage > 0, "increases", "decreases")
-    cat(sprintf(
-      "   • %s %s employment by %.1f pp\n",
-      row$Variable, direction, abs(row$AME_percentage)
-    ))
+wage_table <- if (!is.null(heckman_wages)) heckman_wages else ols_wages
+wage_label <- if (!is.null(heckman_wages)) "Heckman-corrected" else "OLS (uncorrected)"
+if (!is.null(wage_table)) {
+  cat(sprintf("\n   Adjusted wage penalties (%s, vs Brahmins):\n", wage_label))
+  for (i in seq_len(nrow(wage_table))) {
+    cat(sprintf("     %-35s %+.1f%% %s\n",
+                wage_table$Group[i],
+                wage_table$pct_penalty[i],
+                wage_table$sig[i]))
   }
 }
 
-if (!is.na(muslim_marginal_effect) && muslim_marginal_effect < 0) {
-  cat(sprintf(
-    "   • Muslim identity decreases employment by %.1f pp (net of all factors)\n",
-    abs(muslim_marginal_effect)
-  ))
+if (!is.null(nrega_summary)) {
+  cat("\n   NREGA participation (distress employment proxy):\n")
+  for (i in seq_len(nrow(nrega_summary))) {
+    cat(sprintf("     %-20s %.1f%%\n",
+                nrega_summary$social_group_broad[i],
+                nrega_summary$pct_NREGA[i]))
+  }
 }
+cat("\n")
 
-cat("\n9. DATA QUALITY & SAMPLE CHARACTERISTICS:\n")
-cat(sprintf("   • Final analytic sample: %s individuals\n", format(nrow(analysis_data), big.mark = ",")))
-cat(sprintf("   • Employment rate: %.1f%%\n", 100 * mean(analysis_data$employed, na.rm = TRUE)))
-cat(sprintf(
-  "   • Muslim sample size: %s observations\n",
-  format(group_comparison$n[group_comparison$social_group == "Muslims"], big.mark = ",")
-))
-cat("   • Regression controls: Education, wealth, age, gender, social group, state\n")
+# ── 8. GENDER ────────────────────────────────────────────────────────────────
+cat("8. GENDER:\n")
+female_ame <- ame_results$AME_pp[ame_results$Variable == "Female (vs Male)"]
+female_sig <- ame_results$sig[ame_results$Variable == "Female (vs Male)"]
+if (length(female_ame) > 0)
+  cat(sprintf("   • Female employment penalty: %+.1f pp %s\n", female_ame,
+              ifelse(length(female_sig) > 0, female_sig, "")))
 
-cat("\n10. KEY CONTRIBUTIONS:\n")
-cat("   • Quantifies Muslim disadvantage net of education/wealth differences\n")
-cat("   • Documents wealth-employment paradox in rural India\n")
-cat("   • Provides marginal effects for policy costing\n")
-cat("   • Reveals multidimensional nature of social exclusion\n")
+# ── 9. POLICY SUMMARY ────────────────────────────────────────────────────────
+print_section("POLICY IMPLICATIONS SUMMARY")
 
-cat("\n", rep("=", 80), "\n", sep = "")
-cat("ANALYSIS COMPLETE - ENHANCED MUSLIM DISADVANTAGE & MARGINAL EFFECTS INTEGRATED\n")
-cat(rep("=", 80), "\n", sep = "")
+cat("
+GROUP-SPECIFIC POLICY LEVERS (based on differentiated mechanisms):
 
-# Save comprehensive summary
-final_summary <- list(
-  scope = sample_type,
-  sample_size = nrow(analysis_data),
-  wealth_employment_correlation = wealth_emp_cor,
-  muslim_disadvantage = list(
-    employment_rank = muslim_rank_employment,
-    wealth_rank = muslim_rank_wealth,
-    education_rank = muslim_rank_education,
-    education_gap = brahmin_edu - muslim_edu,
-    marginal_effect = muslim_marginal_effect
-  ),
-  marginal_effects = ame_results,
-  policy_implications = c(
-    "Address Muslim educational deficit",
-    "Leverage social capital returns",
-    "Scale education investments",
-    "Target gender inequality",
-    "Investigate wealth-employment paradox"
-  )
+1. MUSLIMS — Geographic Trap + Educational Deficit
+   • Place-based economic development in high-Muslim-concentration districts
+   • Close the ~3.4-year education gap vs Brahmins through targeted infrastructure
+   • General employment schemes deliver little without addressing geographic stagnation
+
+2. ADIVASIS — Subsistence Mirage (high employment, lowest wages)
+   • Formalise casual contracts — 85%+ in casual labour with no security
+   • Enforce minimum agricultural wages and reform forest produce pricing
+   • NREGA is a coping mechanism, not a solution; quality upgrades needed
+
+3. DALITS — Distributed Barrier (identity penalty regardless of geography)
+   • Anti-discrimination enforcement in private sector hiring
+   • Wage penalty persists after controlling for education, age, location
+   • District FE does NOT eliminate the penalty → requires identity-level intervention
+
+4. SOCIAL CAPITAL (universal lever)
+   • Org membership: +%.2f pp employment probability
+   • Group-differentiated returns — scale organisations especially where returns are lowest
+   • Only ~8-9%% of rural population in any organisation — massive untapped potential
+
+5. GENDER (cross-cutting)
+   • Female penalty: ~26 pp — one of the largest gender gaps in the literature
+   • Gender-specific employment programmes needed, especially for Muslim women
+",
+    org_ame[1]
 )
 
+# Save summary
+final_summary <- list(
+  scope           = "Full India (Urban + Rural)",
+  sample_size     = sum(group_comparison$n),
+  wealth_emp_cor  = wealth_emp_cor,
+  ame_results     = ame_results,
+  group_ame       = group_ame_results,
+  robustness      = robustness_table
+)
 saveRDS(final_summary, "output/final_comprehensive_summary.rds")
-cat("✓ Comprehensive summary saved to output/final_comprehensive_summary.rds\n")
+cat("\n✓ Summary saved to output/final_comprehensive_summary.rds\n")
+cat(rep("=", 80), "\n", sep = "")
